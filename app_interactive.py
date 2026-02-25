@@ -466,7 +466,7 @@ if not le_raw.empty:
             fit_mask = np.isfinite(x23) & np.isfinite(y23) & (x23 > 0)
             if fit_mask.sum() >= 4:
                 coef = np.polyfit(np.log(x23[fit_mask]), y23[fit_mask], 3)
-                x_fit = np.linspace(float(np.nanmin(x23[fit_mask])), float(np.nanmax(x23[fit_mask])), 300)
+                x_fit = np.linspace(1.7, float(np.nanmax(x23[fit_mask])), 300)
                 y_fit = (
                     coef[0] * np.log(x_fit) ** 3
                     + coef[1] * np.log(x_fit) ** 2
