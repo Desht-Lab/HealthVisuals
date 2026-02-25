@@ -103,6 +103,49 @@ def apply_streamlit_font() -> None:
         st.markdown(css, unsafe_allow_html=True)
 
 
+def apply_sidebar_max_width() -> None:
+    st.markdown(
+        """
+        <style>
+          section[data-testid="stSidebar"],
+          [data-testid="stSidebar"] {
+            min-width: 30rem !important;
+            max-width: 30rem !important;
+          }
+
+          @media (max-width: 768px) {
+            section[data-testid="stSidebar"],
+            [data-testid="stSidebar"] {
+              min-width: 100vw !important;
+              max-width: 100vw !important;
+            }
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+RESET_FILTERS_FLAG = "_reset_filters_to_default"
+
+
+def set_default_filter_value(key: str, value) -> None:
+    if st.session_state.get(RESET_FILTERS_FLAG, False) or key not in st.session_state:
+        st.session_state[key] = value
+
+
+def sync_multiselect_state(key: str, options: list[str], fallback: list[str]) -> None:
+    if st.session_state.get(RESET_FILTERS_FLAG, False) or key not in st.session_state:
+        st.session_state[key] = fallback
+        return
+
+    current = st.session_state.get(key, [])
+    if not isinstance(current, list):
+        current = []
+    valid = [item for item in current if item in options]
+    st.session_state[key] = valid if valid else fallback
+
+
 def format_year(value: float) -> str:
     if pd.notna(value):
         return str(int(value))
@@ -151,9 +194,12 @@ def style_plotly_figure(fig: go.Figure) -> None:
     )
 
 
-st.set_page_config(page_title="Health visuals", layout="wide")
+st.set_page_config(page_title="Health visuals", layout="wide", initial_sidebar_state="expanded")
 apply_streamlit_font()
+apply_sidebar_max_width()
 st.title("Аналитика для здравоохранения")
+if st.sidebar.button("Сбросить фильтры", key="reset_filters_button"):
+    st.session_state[RESET_FILTERS_FLAG] = True
 
 
 # -----------------------------------------------------------------------------
@@ -182,18 +228,23 @@ if not expenditure_ppp_viz.empty:
     if iso3_to_ru:
         all_countries = [iso for iso in all_countries if iso in iso3_to_ru]
     default_sel = [c for c in ["KAZ", "UZB"] if c in all_countries]
+    default_sel = default_sel if default_sel else (all_countries[:1] if all_countries else [])
+
+    sync_multiselect_state("v1_selected_countries", all_countries, default_sel)
+    set_default_filter_value("v1_show_labels", True)
+    set_default_filter_value("v1_xmax", 3.5)
+    set_default_filter_value("v1_ylim", (20, 90))
 
     selected = st.sidebar.multiselect(
         "Страны",
         options=all_countries,
         format_func=lambda iso: iso3_to_ru.get(iso, iso),
-        default=default_sel if default_sel else (all_countries[:1] if all_countries else []),
         key="v1_selected_countries",
     )
 
-    show_labels = st.sidebar.checkbox("Показывать последний год", value=True, key="v1_show_labels")
-    xmax = st.sidebar.slider("Лимиты по оси X", 0.5, 15.0, 3.5, 0.1, key="v1_xmax")
-    ymin, ymax = st.sidebar.slider("Лимиты по оси Y", 0, 100, (20, 90), 1, key="v1_ylim")
+    show_labels = st.sidebar.checkbox("Показывать последний год", key="v1_show_labels")
+    xmax = st.sidebar.slider("Лимиты по оси X", min_value=0.5, max_value=15.0, step=0.1, key="v1_xmax")
+    ymin, ymax = st.sidebar.slider("Лимиты по оси Y", min_value=0, max_value=100, step=1, key="v1_ylim")
 
     df = expenditure_ppp_viz.copy()
     df["country"] = df["country"].astype(str).str.upper().str.strip()
@@ -353,11 +404,14 @@ if not le_raw.empty:
             if not default_connect and common_isos:
                 default_connect = common_isos[:5]
 
+            sync_multiselect_state("v2_connectors", common_isos, default_connect)
+            set_default_filter_value("v2_xlim", (0.0, 120.0))
+            set_default_filter_value("v2_ylim", (60.0, 85.0))
+
             selected_connectors = st.sidebar.multiselect(
                 "Страны",
                 options=common_isos,
                 format_func=lambda iso: iso3_to_ru.get(iso, iso),
-                default=default_connect,
                 key="v2_connectors",
             )
             selected_set = set(selected_connectors)
@@ -365,7 +419,6 @@ if not le_raw.empty:
                 "Лимиты по оси X",
                 min_value=0.0,
                 max_value=120.0,
-                value=(0.0, 120.0),
                 step=0.5,
                 key="v2_xlim",
             )
@@ -373,7 +426,6 @@ if not le_raw.empty:
                 "Лимиты по оси Y",
                 min_value=40.0,
                 max_value=90.0,
-                value=(60.0, 85.0),
                 step=0.5,
                 key="v2_ylim",
             )
@@ -495,3 +547,6 @@ if not le_raw.empty:
             style_plotly_figure(fig2)
 
             st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False})
+
+if st.session_state.get(RESET_FILTERS_FLAG, False):
+    st.session_state[RESET_FILTERS_FLAG] = False
