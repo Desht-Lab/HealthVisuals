@@ -282,7 +282,7 @@ if not expenditure_ppp_viz.empty:
     )
     fig1.update_yaxes(range=[ymin, ymax], title_text="Индекс здравоохранения")
     fig1.update_layout(
-                title={"text": ""}
+                title={"text": "В правом верхнем углу графика вы можете воспользоваться контроллерами (зум, сохранить картинку и т.д.)"}
             )
     style_plotly_figure(fig1)
 
