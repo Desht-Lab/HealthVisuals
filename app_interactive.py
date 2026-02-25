@@ -110,7 +110,7 @@ def format_year(value: float) -> str:
 
 
 def build_hover(country_iso: str, country_name: str, year_value: float) -> str:
-    return f"{country_name} ({country_iso})<br>Year: {format_year(year_value)}"
+    return f"{country_name} ({country_iso})<br>Год: {format_year(year_value)}"
 
 
 def style_plotly_figure(fig: go.Figure) -> None:
