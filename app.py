@@ -215,7 +215,7 @@ if not expenditure_ppp_viz.empty:
 
     sync_multiselect_state("v1_selected_countries", all_countries, default_sel)
     set_default_filter_value("v1_show_labels", True)
-    set_default_filter_value("v1_xmax", 3.5)
+    set_default_filter_value("v1_xlim", (0.0, 3.5))
     set_default_filter_value("v1_ylim", (20, 90))
 
     selected = st.sidebar.multiselect(
@@ -226,7 +226,7 @@ if not expenditure_ppp_viz.empty:
     )
 
     show_labels = st.sidebar.checkbox("Показывать последний год", key="v1_show_labels")
-    xmax = st.sidebar.slider("Лимиты по оси X", min_value=0.5, max_value=15.0, step=0.1, key="v1_xmax")
+    xmin, xmax = st.sidebar.slider("Лимиты по оси X", min_value=0.0, max_value=15.0, step=0.1, key="v1_xlim")
     ymin, ymax = st.sidebar.slider("Лимиты по оси Y", min_value=0, max_value=100, step=1, key="v1_ylim")
 
     df = expenditure_ppp_viz.copy()
@@ -244,9 +244,12 @@ if not expenditure_ppp_viz.empty:
     if has_fit:
         lx = np.log(x[fit_mask])
         coef = np.polyfit(lx, y[fit_mask], 3)
-        x_fit = np.linspace(max(0.01, np.nanmin(x[fit_mask])), min(xmax, np.nanmax(x[fit_mask])), 600)
-        y_fit = coef[0] * np.log(x_fit) ** 3 + coef[1] * np.log(x_fit) ** 2 + coef[2] * np.log(x_fit) + coef[3]
-        ax1.plot(x_fit, y_fit, linewidth=1.5, linestyle="--", color="#4472C4")
+        x_fit_min = max(0.01, float(np.nanmin(x[fit_mask])), float(xmin))
+        x_fit_max = min(float(xmax), float(np.nanmax(x[fit_mask])))
+        if x_fit_max > x_fit_min:
+            x_fit = np.linspace(x_fit_min, x_fit_max, 600)
+            y_fit = coef[0] * np.log(x_fit) ** 3 + coef[1] * np.log(x_fit) ** 2 + coef[2] * np.log(x_fit) + coef[3]
+            ax1.plot(x_fit, y_fit, linewidth=1.5, linestyle="--", color="#4472C4")
 
     for c in selected:
         sub = df[df["country"] == c].sort_values("year")
@@ -269,7 +272,7 @@ if not expenditure_ppp_viz.empty:
                 fontproperties=FONT_PROP,
             )
 
-    ax1.set_xlim(0, xmax)
+    ax1.set_xlim(xmin, xmax)
     ax1.set_ylim(ymin, ymax)
     ax1.set_ylabel("Индекс здравоохранения", fontsize=11, fontproperties=FONT_PROP)
     ax1.set_xlabel(
