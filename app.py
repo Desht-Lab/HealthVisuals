@@ -234,11 +234,12 @@ if not expenditure_ppp_viz.empty:
     if selected:
         ax1.legend(frameon=False, prop=FONT_PROP)
 
+    fig1_png = build_png_bytes(fig1)
     st.pyplot(fig1, clear_figure=True)
 
     st.download_button(
         "Скачать в png",
-        data=build_png_bytes(fig1),
+        data=fig1_png,
         file_name="SDGHealthvsExpDyn.png",
         mime="image/png",
         key="v1_download_png",
@@ -415,12 +416,13 @@ if not le_raw.empty:
             if dedup:
                 ax2.legend(dedup.values(), dedup.keys(), frameon=False, loc="best", prop=FONT_PROP)
 
+            fig2_png = build_png_bytes(fig2)
             st.pyplot(fig2, clear_figure=True)
          
 
             st.download_button(
                 "Скачать в png",
-                data=build_png_bytes(fig2),
+                data=fig2_png,
                 file_name="LEvsGNI_2000_2023.png",
                 mime="image/png",
                 key="v2_download_png",
