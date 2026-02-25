@@ -1,11 +1,13 @@
-import io
-import os
 import base64
+import os
+
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
-import matplotlib.pyplot as plt
-from matplotlib import font_manager as fm
+
+
+PLOTLY_FONT_FAMILY = "GothamBook, Segoe UI, sans-serif"
 
 
 @st.cache_data
@@ -37,29 +39,6 @@ def load_country_name_map(path: str) -> dict:
     df["name"] = df["name"].astype(str).str.strip()
     df = df[df["id"].str.len() == 3]
     return dict(zip(df["id"], df["name"]))
-
-
-def build_png_bytes(fig) -> bytes:
-    buf = io.BytesIO()
-    fig.savefig(buf, dpi=300, bbox_inches="tight")
-    buf.seek(0)
-    return buf.getvalue()
-
-
-@st.cache_resource
-def configure_chart_font() -> fm.FontProperties:
-    """Register Gotham Book and return a reusable FontProperties."""
-    app_dir = os.path.dirname(os.path.abspath(__file__))
-    gotham_path = os.path.join(app_dir, "Gotham-Book.ttf")
-
-    if os.path.exists(gotham_path):
-        fm.fontManager.addfont(gotham_path)
-        gotham_name = fm.FontProperties(fname=gotham_path).get_name()
-        plt.rcParams["font.family"] = gotham_name
-        plt.rcParams["font.sans-serif"] = [gotham_name]
-        return fm.FontProperties(fname=gotham_path)
-
-    return fm.FontProperties()
 
 
 @st.cache_data
@@ -124,14 +103,52 @@ def apply_streamlit_font() -> None:
         st.markdown(css, unsafe_allow_html=True)
 
 
-FONT_PROP = configure_chart_font()
+def format_year(value: float) -> str:
+    if pd.notna(value):
+        return str(int(value))
+    return "n/a"
 
 
-def apply_axis_font(ax, font_prop: fm.FontProperties) -> None:
-    for label in ax.get_xticklabels():
-        label.set_fontproperties(font_prop)
-    for label in ax.get_yticklabels():
-        label.set_fontproperties(font_prop)
+def build_hover(country_iso: str, country_name: str, year_value: float) -> str:
+    return f"{country_name} ({country_iso})<br>Year: {format_year(year_value)}"
+
+
+def style_plotly_figure(fig: go.Figure) -> None:
+    fig.update_layout(
+        template="simple_white",
+        height=560,
+        font={"family": PLOTLY_FONT_FAMILY, "size": 12, "color": "#000000"},
+        margin={"l": 20, "r": 20, "t": 30, "b": 20},
+        hovermode="closest",
+        legend={"title": None, "font": {"color": "#000000"}},
+        title={"font": {"color": "#000000"}},
+    )
+    fig.update_xaxes(
+        showline=True,
+        mirror=False,
+        linecolor="#000000",
+        linewidth=1,
+        zeroline=False,
+        showgrid=True,
+        gridcolor="#D9D9D9",
+        gridwidth=0.5,
+        griddash="dash",
+        title_font={"color": "#000000"},
+        tickfont={"color": "#000000"},
+    )
+    fig.update_yaxes(
+        showline=True,
+        mirror=False,
+        linecolor="#000000",
+        linewidth=1,
+        zeroline=False,
+        showgrid=True,
+        gridcolor="#D9D9D9",
+        gridwidth=0.5,
+        griddash="dash",
+        title_font={"color": "#000000"},
+        tickfont={"color": "#000000"},
+    )
 
 
 st.set_page_config(page_title="Health visuals", layout="wide")
@@ -179,72 +196,97 @@ if not expenditure_ppp_viz.empty:
     ymin, ymax = st.sidebar.slider("Лимиты по оси Y", 0, 100, (20, 90), 1, key="v1_ylim")
 
     df = expenditure_ppp_viz.copy()
+    df["country"] = df["country"].astype(str).str.upper().str.strip()
+    df["year_num"] = pd.to_numeric(df["year"], errors="coerce")
+    df["x"] = pd.to_numeric(df["exp_corrected"], errors="coerce") / 1000.0
+    df["y"] = pd.to_numeric(df["sdg3_weighted_mean"], errors="coerce")
+    df["country_label"] = df["country"].map(lambda iso: iso3_to_ru.get(iso, iso))
 
-    x = pd.to_numeric(df["exp_corrected"], errors="coerce").to_numpy() / 1000.0
-    y = pd.to_numeric(df["sdg3_weighted_mean"], errors="coerce").to_numpy()
-
+    x = df["x"].to_numpy()
+    y = df["y"].to_numpy()
     fit_mask = np.isfinite(x) & np.isfinite(y) & (x > 0)
     has_fit = fit_mask.sum() >= 4
 
-    fig1, ax1 = plt.subplots(figsize=(12, 6))
+    fig1 = go.Figure()
 
-    ax1.scatter(x, y, alpha=0.35, s=15, color="#A6A6A6")
+    base = df[np.isfinite(df["x"]) & np.isfinite(df["y"])].copy()
+    base_hover = [
+        build_hover(iso, name, year)
+        for iso, name, year in zip(base["country"], base["country_label"], base["year_num"])
+    ]
+    fig1.add_trace(
+        go.Scatter(
+            x=base["x"],
+            y=base["y"],
+            mode="markers",
+            name="All countries",
+            marker={"color": "#A6A6A6", "size": 6, "opacity": 0.35},
+            text=base_hover,
+            hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+            showlegend=False,
+        )
+    )
 
     if has_fit:
         lx = np.log(x[fit_mask])
         coef = np.polyfit(lx, y[fit_mask], 3)
-        x_fit = np.linspace(max(0.01, np.nanmin(x[fit_mask])), min(xmax, np.nanmax(x[fit_mask])), 600)
+        x_fit = np.linspace(max(0.01, float(np.nanmin(x[fit_mask]))), min(xmax, float(np.nanmax(x[fit_mask]))), 600)
         y_fit = coef[0] * np.log(x_fit) ** 3 + coef[1] * np.log(x_fit) ** 2 + coef[2] * np.log(x_fit) + coef[3]
-        ax1.plot(x_fit, y_fit, linewidth=1.5, linestyle="--", color="#4472C4")
+        fig1.add_trace(
+            go.Scatter(
+                x=x_fit,
+                y=y_fit,
+                mode="lines",
+                name="Тренд",
+                line={"width": 2, "dash": "dash", "color": "#4472C4"},
+                hovertemplate="X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+            )
+        )
 
     for c in selected:
-        sub = df[df["country"] == c].sort_values("year")
+        sub = df[df["country"] == c].sort_values("year_num").copy()
+        sub = sub[np.isfinite(sub["x"]) & np.isfinite(sub["y"])]
         if sub.empty:
             continue
 
-        x_c = pd.to_numeric(sub["exp_corrected"], errors="coerce").to_numpy() / 1000.0
-        y_c = pd.to_numeric(sub["sdg3_weighted_mean"], errors="coerce").to_numpy()
-
         label = iso3_to_ru.get(c, c)
-        ax1.plot(x_c, y_c, linewidth=1.8, marker="o", markersize=4, label=label, zorder=3)
+        hover_text = [build_hover(c, label, yr) for yr in sub["year_num"]]
+        fig1.add_trace(
+            go.Scatter(
+                x=sub["x"],
+                y=sub["y"],
+                mode="lines+markers",
+                name=label,
+                line={"width": 2},
+                marker={"size": 7},
+                text=hover_text,
+                hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+            )
+        )
 
-        if show_labels and len(sub) > 0:
-            ax1.text(
-                x_c[-1],
-                y_c[-1],
-                f" {int(sub['year'].iloc[-1])}",
-                fontsize=10,
-                va="center",
-                fontproperties=FONT_PROP,
+        if show_labels:
+            last = sub.iloc[-1]
+            fig1.add_annotation(
+                x=float(last["x"]),
+                y=float(last["y"]),
+                text=f" {format_year(last['year_num'])}",
+                showarrow=False,
+                xanchor="left",
+                yanchor="middle",
+                font={"size": 10, "color": "#000000"},
             )
 
-    ax1.set_xlim(0, xmax)
-    ax1.set_ylim(ymin, ymax)
-    ax1.set_ylabel("Индекс здравоохранения", fontsize=11, fontproperties=FONT_PROP)
-    ax1.set_xlabel(
-        "Расходы на здравоохранение, тыс. долларов США, ППС, в ценах 2024 года",
-        fontsize=11,
-        fontproperties=FONT_PROP,
+    fig1.update_xaxes(
+        range=[0, xmax],
+        title_text="Расходы на здравоохранение, тыс. долларов США, ППС, в ценах 2024 года",
     )
-    ax1.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.6)
-    ax1.spines["top"].set_visible(False)
-    ax1.spines["right"].set_visible(False)
-    
-    apply_axis_font(ax1, FONT_PROP)
+    fig1.update_yaxes(range=[ymin, ymax], title_text="Индекс здравоохранения")
+    fig1.update_layout(
+                title={"text": ""}
+            )
+    style_plotly_figure(fig1)
 
-    if selected:
-        ax1.legend(frameon=False, prop=FONT_PROP)
-
-    fig1_png = build_png_bytes(fig1)
-    st.pyplot(fig1, clear_figure=True)
-
-    st.download_button(
-        "Скачать в png",
-        data=fig1_png,
-        file_name="SDGHealthvsExpDyn.png",
-        mime="image/png",
-        key="v1_download_png",
-    )
+    st.plotly_chart(fig1, use_container_width=True, config={"displaylogo": False})
 
 
 # -----------------------------------------------------------------------------
@@ -286,7 +328,6 @@ if not le_raw.empty:
         if d00.empty or d23.empty:
             st.error("Could not find both year 2000 and 2023 in LE file.")
         else:
-            # x-axis in thousands
             d00["x"] = d00[required_x_col] / 1000.0
             d23["x"] = d23[required_x_col] / 1000.0
 
@@ -301,8 +342,8 @@ if not le_raw.empty:
             y23 = d23["LE"].to_numpy()
             c23 = d23["Country Code"].astype(str).to_numpy()
 
-            xy00 = {iso: (x, y) for iso, x, y in zip(c00, x00, y00)}
-            xy23 = {iso: (x, y) for iso, x, y in zip(c23, x23, y23)}
+            xy00 = {iso: (xv, yv) for iso, xv, yv in zip(c00, x00, y00)}
+            xy23 = {iso: (xv, yv) for iso, xv, yv in zip(c23, x23, y23)}
             common_isos = sorted(set(xy00) & set(xy23), key=lambda iso: iso3_to_ru.get(iso, iso))
             if iso3_to_ru:
                 common_isos = [iso for iso in common_isos if iso in iso3_to_ru]
@@ -340,23 +381,57 @@ if not le_raw.empty:
             mask_sel_23 = np.isin(c23, selected_list)
             mask_sel_00 = np.isin(c00, selected_list)
 
-            fig2, ax2 = plt.subplots(figsize=(12, 6))
+            fig2 = go.Figure()
 
-            # Points for both years
-            ax2.scatter(x23, y23, s=24, color="#A6A6A6", alpha=0.45, zorder=2, label="2023")
-            ax2.scatter(
-                x00, y00, s=24, facecolors="none", edgecolors="#A6A6A6",
-                linewidth=0.8, alpha=0.7, zorder=1, label="2000"
+            hover_23 = [build_hover(iso, iso3_to_ru.get(iso, iso), 2023) for iso in c23]
+            hover_00 = [build_hover(iso, iso3_to_ru.get(iso, iso), 2000) for iso in c00]
+
+            fig2.add_trace(
+                go.Scatter(
+                    x=x23,
+                    y=y23,
+                    mode="markers",
+                    name="2023",
+                    marker={"size": 7, "color": "#A6A6A6", "opacity": 0.45},
+                    text=hover_23,
+                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                )
+            )
+            fig2.add_trace(
+                go.Scatter(
+                    x=x00,
+                    y=y00,
+                    mode="markers",
+                    name="2000",
+                    marker={"size": 7, "color": "#A6A6A6", "opacity": 0.75, "symbol": "circle-open"},
+                    text=hover_00,
+                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                )
             )
 
-            # Selected countries overlay in blue
-            ax2.scatter(x23[mask_sel_23], y23[mask_sel_23], s=32, color="#376C8A", alpha=0.95, zorder=4)
-            ax2.scatter(
-                x00[mask_sel_00], y00[mask_sel_00], s=32, facecolors="none",
-                edgecolors="#376C8A", linewidth=1.1, alpha=0.95, zorder=4
+            fig2.add_trace(
+                go.Scatter(
+                    x=x23[mask_sel_23],
+                    y=y23[mask_sel_23],
+                    mode="markers",
+                    marker={"size": 9, "color": "#376C8A", "opacity": 0.95},
+                    text=[build_hover(iso, iso3_to_ru.get(iso, iso), 2023) for iso in c23[mask_sel_23]],
+                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    showlegend=False,
+                )
+            )
+            fig2.add_trace(
+                go.Scatter(
+                    x=x00[mask_sel_00],
+                    y=y00[mask_sel_00],
+                    mode="markers",
+                    marker={"size": 9, "color": "#376C8A", "opacity": 0.95, "symbol": "circle-open"},
+                    text=[build_hover(iso, iso3_to_ru.get(iso, iso), 2000) for iso in c00[mask_sel_00]],
+                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    showlegend=False,
+                )
             )
 
-            # Small right shift for code labels to reduce overlap with markers.
             x_finite_23 = x23[np.isfinite(x23)]
             x_label_shift = 0.2
             if x_finite_23.size > 1:
@@ -364,67 +439,59 @@ if not le_raw.empty:
                 if np.isfinite(x_span_23) and x_span_23 > 0:
                     x_label_shift = max(1, 0.008 * x_span_23)
 
-            # Connect only selected countries
             for iso in sorted(selected_set & set(common_isos)):
                 x0, y0 = xy00[iso]
                 x1, y1 = xy23[iso]
-                ax2.plot([x0, x1], [y0, y1], color="#376C8A", linewidth=1.0, alpha=0.75, zorder=3)
-                ax2.text(
-                    x1 + x_label_shift,
-                    y1,
-                    f" {iso}",
-                    fontsize=8,
-                    color="#376C8A",
-                    zorder=6,
-                    va="center",
-                    fontproperties=FONT_PROP,
+                label = iso3_to_ru.get(iso, iso)
+                fig2.add_trace(
+                    go.Scatter(
+                        x=[x0, x1],
+                        y=[y0, y1],
+                        mode="lines",
+                        line={"color": "#376C8A", "width": 1.2},
+                        hovertemplate=f"{label} ({iso})<br>X: %{{x:.2f}}<br>Y: %{{y:.2f}}<extra></extra>",
+                        showlegend=False,
+                    )
+                )
+                fig2.add_annotation(
+                    x=x1 + x_label_shift,
+                    y=y1,
+                    text=f" {iso}",
+                    showarrow=False,
+                    font={"size": 9, "color": "#000000"},
+                    xanchor="left",
+                    yanchor="middle",
                 )
 
-            # Trendline on ALL 2023 observations
             fit_mask = np.isfinite(x23) & np.isfinite(y23) & (x23 > 0)
             if fit_mask.sum() >= 4:
                 coef = np.polyfit(np.log(x23[fit_mask]), y23[fit_mask], 3)
-                x_fit = np.linspace(np.nanmin(x23[fit_mask]), np.nanmax(x23[fit_mask]), 300)
+                x_fit = np.linspace(float(np.nanmin(x23[fit_mask])), float(np.nanmax(x23[fit_mask])), 300)
                 y_fit = (
                     coef[0] * np.log(x_fit) ** 3
                     + coef[1] * np.log(x_fit) ** 2
                     + coef[2] * np.log(x_fit)
                     + coef[3]
                 )
-                ax2.plot(x_fit, y_fit, linewidth=1.4, linestyle="--", color="#4472C4", zorder=0, label="Тренд (2023)")
+                fig2.add_trace(
+                    go.Scatter(
+                        x=x_fit,
+                        y=y_fit,
+                        mode="lines",
+                        name="Тренд (2023)",
+                        line={"width": 2, "dash": "dash", "color": "#4472C4"},
+                        hovertemplate="X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    )
+                )
 
-            ax2.set_xlabel("ВНД, тыс. долларов США, ППС, в ценах 2024 года", fontsize=11, fontproperties=FONT_PROP)
-            ax2.set_ylabel("ОПЖ", fontsize=11, fontproperties=FONT_PROP)
-            ax2.set_title(
-                "Тренд основан на выборке 2023 года, выбранные страны соединены",
-                fontsize=12,
-                fontproperties=FONT_PROP,
+            fig2.update_xaxes(
+                title_text="ВНД, тыс. долларов США, ППС, в ценах 2024 года",
+                range=[x_lim_v2[0], x_lim_v2[1]],
             )
-
-            ax2.set_xlim(x_lim_v2[0], x_lim_v2[1])
-            ax2.set_ylim(y_lim_v2[0], y_lim_v2[1])
-
-            ax2.grid(True, which="both", linestyle="--", linewidth=0.5, color="#D9D9D9")
-            ax2.spines["top"].set_visible(False)
-            ax2.spines["right"].set_visible(False)
-            apply_axis_font(ax2, FONT_PROP)
-
-            handles, labels = ax2.get_legend_handles_labels()
-            dedup = {}
-            for h, l in zip(handles, labels):
-                if l and l not in dedup:
-                    dedup[l] = h
-            if dedup:
-                ax2.legend(dedup.values(), dedup.keys(), frameon=False, loc="best", prop=FONT_PROP)
-
-            fig2_png = build_png_bytes(fig2)
-            st.pyplot(fig2, clear_figure=True)
-         
-
-            st.download_button(
-                "Скачать в png",
-                data=fig2_png,
-                file_name="LEvsGNI_2000_2023.png",
-                mime="image/png",
-                key="v2_download_png",
+            fig2.update_yaxes(title_text="ОПЖ", range=[y_lim_v2[0], y_lim_v2[1]])
+            fig2.update_layout(
+                title={"text": "Тренд основан на выборке 2023 года, выбранные страны соединены"}
             )
+            style_plotly_figure(fig2)
+
+            st.plotly_chart(fig2, use_container_width=True, config={"displaylogo": False})
