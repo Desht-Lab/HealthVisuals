@@ -230,7 +230,7 @@ if not expenditure_ppp_viz.empty:
     if has_fit:
         lx = np.log(x[fit_mask])
         coef = np.polyfit(lx, y[fit_mask], 3)
-        x_fit = np.linspace(max(0.01, float(np.nanmin(x[fit_mask]))), min(xmax, float(np.nanmax(x[fit_mask]))), 600)
+        x_fit = np.linspace(max(0.01, float(np.nanmin(x[fit_mask]))), 15.0)
         y_fit = coef[0] * np.log(x_fit) ** 3 + coef[1] * np.log(x_fit) ** 2 + coef[2] * np.log(x_fit) + coef[3]
         fig1.add_trace(
             go.Scatter(
@@ -466,7 +466,7 @@ if not le_raw.empty:
             fit_mask = np.isfinite(x23) & np.isfinite(y23) & (x23 > 0)
             if fit_mask.sum() >= 4:
                 coef = np.polyfit(np.log(x23[fit_mask]), y23[fit_mask], 3)
-                x_fit = np.linspace(1.7, float(np.nanmax(x23[fit_mask])), 300)
+                x_fit = np.linspace(1.7, 130.0)
                 y_fit = (
                     coef[0] * np.log(x_fit) ** 3
                     + coef[1] * np.log(x_fit) ** 2
