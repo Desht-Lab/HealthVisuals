@@ -222,7 +222,7 @@ if not expenditure_ppp_viz.empty:
             name="All countries",
             marker={"color": "#A6A6A6", "size": 6, "opacity": 0.35},
             text=base_hover,
-            hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+            hovertemplate="%{text}<br>Расходы: %{x:.2f}<br>Индекс: %{y:.2f}<extra></extra>",
             showlegend=False,
         )
     )
@@ -239,7 +239,7 @@ if not expenditure_ppp_viz.empty:
                 mode="lines",
                 name="Тренд",
                 line={"width": 2, "dash": "dash", "color": "#4472C4"},
-                hovertemplate="X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                hovertemplate="Расходы: %{x:.2f}<br>Индекс: %{y:.2f}<extra></extra>",
             )
         )
 
@@ -260,7 +260,7 @@ if not expenditure_ppp_viz.empty:
                 line={"width": 2},
                 marker={"size": 7},
                 text=hover_text,
-                hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                hovertemplate="%{text}<br>Расходы: %{x:.2f}<br>Индекс: %{y:.2f}<extra></extra>",
             )
         )
 
@@ -394,7 +394,7 @@ if not le_raw.empty:
                     name="2023",
                     marker={"size": 7, "color": "#A6A6A6", "opacity": 0.45},
                     text=hover_23,
-                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    hovertemplate="%{text}<br>ВНД: %{x:.2f}<br>ОПЖ: %{y:.2f}<extra></extra>",
                 )
             )
             fig2.add_trace(
@@ -405,7 +405,7 @@ if not le_raw.empty:
                     name="2000",
                     marker={"size": 7, "color": "#A6A6A6", "opacity": 0.75, "symbol": "circle-open"},
                     text=hover_00,
-                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    hovertemplate="%{text}<br>ВНД: %{x:.2f}<br>ОПЖ: %{y:.2f}<extra></extra>",
                 )
             )
 
@@ -416,7 +416,7 @@ if not le_raw.empty:
                     mode="markers",
                     marker={"size": 9, "color": "#376C8A", "opacity": 0.95},
                     text=[build_hover(iso, iso3_to_ru.get(iso, iso), 2023) for iso in c23[mask_sel_23]],
-                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    hovertemplate="%{text}<br>ВНД: %{x:.2f}<br>ОПЖ: %{y:.2f}<extra></extra>",
                     showlegend=False,
                 )
             )
@@ -427,7 +427,7 @@ if not le_raw.empty:
                     mode="markers",
                     marker={"size": 9, "color": "#376C8A", "opacity": 0.95, "symbol": "circle-open"},
                     text=[build_hover(iso, iso3_to_ru.get(iso, iso), 2000) for iso in c00[mask_sel_00]],
-                    hovertemplate="%{text}<br>X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                    hovertemplate="%{text}<br>ВНД: %{x:.2f}<br>ОПЖ: %{y:.2f}<extra></extra>",
                     showlegend=False,
                 )
             )
@@ -449,7 +449,7 @@ if not le_raw.empty:
                         y=[y0, y1],
                         mode="lines",
                         line={"color": "#376C8A", "width": 1.2},
-                        hovertemplate=f"{label} ({iso})<br>X: %{{x:.2f}}<br>Y: %{{y:.2f}}<extra></extra>",
+                        hovertemplate=f"{label} ({iso})<br>ВНД: %{{x:.2f}}<br>ОПЖ: %{{y:.2f}}<extra></extra>",
                         showlegend=False,
                     )
                 )
@@ -480,7 +480,7 @@ if not le_raw.empty:
                         mode="lines",
                         name="Тренд (2023)",
                         line={"width": 2, "dash": "dash", "color": "#4472C4"},
-                        hovertemplate="X: %{x:.2f}<br>Y: %{y:.2f}<extra></extra>",
+                        hovertemplate="ВНД: %{x:.2f}<br>ОПЖ: %{y:.2f}<extra></extra>",
                     )
                 )
 
