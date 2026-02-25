@@ -142,7 +142,7 @@ st.title("Аналитика для здравоохранения")
 # -----------------------------------------------------------------------------
 # Visual 1: SDG3 vs health expenditure trajectory
 # -----------------------------------------------------------------------------
-st.header("Индекс здравоохранения vs Расходы на здравоохранение, динамика 2000-2023")
+st.header("Индекс здравоохранения против расходов на здравоохранение, динамика 2000-2023")
 
 try:
     iso3_to_ru = load_country_name_map("keys.csv")
@@ -156,7 +156,7 @@ except FileNotFoundError:
     expenditure_ppp_viz = pd.DataFrame()
 
 if not expenditure_ppp_viz.empty:
-    st.sidebar.header("Индекс здравоохранения vs Расходы на здравоохранение, динамика 2000-2023, фильтры")
+    st.sidebar.header("Индекс здравоохранения против расходов на здравоохранение, динамика 2000-2023, фильтры")
 
     all_countries = sorted(
         expenditure_ppp_viz["country"].dropna().astype(str).unique().tolist(),
@@ -250,7 +250,7 @@ if not expenditure_ppp_viz.empty:
 # Visual 2: LE vs GNIPPPconst (2000 and 2023)
 # -----------------------------------------------------------------------------
 st.markdown("---")
-st.header("ОПЖ vs ВНД")
+st.header("ОПЖ против ВНД")
 
 required_x_col = "GNIPPPconst"
 
@@ -306,7 +306,7 @@ if not le_raw.empty:
             if iso3_to_ru:
                 common_isos = [iso for iso in common_isos if iso in iso3_to_ru]
 
-            st.sidebar.header("ОПЖ vs ВНД, фильтры")
+            st.sidebar.header("ОПЖ против ВНД, фильтры")
             default_connect = [c for c in ["KAZ", "HUN", "SVK", "TUR"] if c in common_isos]
             if not default_connect and common_isos:
                 default_connect = common_isos[:5]
