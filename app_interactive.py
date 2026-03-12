@@ -45,7 +45,7 @@ def load_country_name_map(path: str) -> dict:
 def build_streamlit_font_css() -> str:
     """Embed Gotham Book for app text while preserving icon fonts."""
     app_dir = os.path.dirname(os.path.abspath(__file__))
-    gotham_path = os.path.join(app_dir, "Gotham-Book.ttf")
+    gotham_path = os.path.join(app_dir, "Inter_18pt-Regular.ttf")
     if not os.path.exists(gotham_path):
         return ""
 
@@ -55,17 +55,17 @@ def build_streamlit_font_css() -> str:
     return f"""
     <style>
       @font-face {{
-        font-family: "GothamBook";
+        font-family: "Inter";
         src: url(data:font/ttf;base64,{font_b64}) format("truetype");
         font-weight: 400;
         font-style: normal;
       }}
 
       :root {{
-        --app-font: "GothamBook", "Segoe UI", sans-serif;
+        --app-font: "Inter", "Segoe UI", sans-serif;
       }}
 
-      /* Apply Gotham globally */
+      /* Apply Inter globally */
       .stApp,
       .stApp * {{
         font-family: var(--app-font) !important;
