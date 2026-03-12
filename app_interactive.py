@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 
-PLOTLY_FONT_FAMILY = "GothamBook, Segoe UI, sans-serif"
+PLOTLY_FONT_FAMILY = "Inter"
 
 
 @st.cache_data
