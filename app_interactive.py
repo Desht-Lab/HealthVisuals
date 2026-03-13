@@ -323,11 +323,11 @@ if not expenditure_ppp_viz.empty:
             fig1.add_annotation(
                 x=float(last["x"]),
                 y=float(last["y"]),
-                text=f" {format_year(last['year_num'])}",
+                text=f" <b>{format_year(last['year_num'])}</b>",
                 showarrow=False,
                 xanchor="left",
                 yanchor="middle",
-                font={"size": 10, "color": "#000000"},
+                font={"size": 14, "color": "#000000"},
             )
 
     fig1.update_xaxes(
